@@ -67,19 +67,14 @@ else:
 # 상단 헤더 흰 띠 및 사이드바 가독성 최적화 CSS
 st.markdown(f"""
 <style>
-    /* 1. 상단 Streamlit 헤더 흰 띠 완전 제거 */
     header[data-testid="stHeader"] {{
         background-color: {HEADER_BG} !important;
     }}
-    
-    /* 2. 전체 배경 및 본문 */
     .stApp {{
         background-color: {APP_BG};
         color: {TEXT_COLOR};
         font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "Pretendard", sans-serif;
     }}
-    
-    /* 3. 사이드바 라디오 버튼 텍스트 또렷하게 */
     [data-testid="stSidebar"] {{
         background-color: {CARD_BG} !important;
         border-right: 1px solid {BORDER_COLOR};
@@ -90,14 +85,10 @@ st.markdown(f"""
         color: {RADIO_TEXT} !important;
         font-weight: 600 !important;
     }}
-
-    /* 4. 타이틀 및 헤더 */
     h1, h2, h3, h4 {{
         color: {TEXT_COLOR} !important;
         font-weight: 700 !important;
     }}
-
-    /* 5. 지표 메트릭 카드 */
     [data-testid="stMetric"] {{
         background-color: {CARD_BG} !important;
         border-radius: 10px !important;
@@ -122,8 +113,6 @@ st.markdown(f"""
         color: {ACCENT_RED} !important;
         font-weight: 600 !important;
     }}
-
-    /* 6. 탭 메뉴 글씨 선명화 */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 8px;
         border-bottom: 2px solid {BORDER_COLOR};
@@ -141,16 +130,12 @@ st.markdown(f"""
         color: #FFFFFF !important;
         font-weight: 700 !important;
     }}
-
-    /* 7. 알림/인사이트 카드 */
     .stAlert {{
         background-color: {CARD_BG} !important;
         border: 1px solid {BORDER_COLOR} !important;
         border-radius: 8px !important;
         color: {TEXT_COLOR} !important;
     }}
-
-    /* 8. 데이터프레임 */
     [data-testid="stDataFrame"] {{
         background-color: {CARD_BG};
         border-radius: 8px;
@@ -285,7 +270,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # ---------------------------------------------------------
-# TAB 1: 주간 거시 트렌드 & 변동성 분포 (누락 차트 추가 완료)
+# TAB 1: 주간 거시 트렌드 & 변동성 분포
 # ---------------------------------------------------------
 with tab1:
     st.markdown("### 1. 주간 시청 시간 추이 및 이동평균(SMA) 분석")
@@ -311,7 +296,6 @@ with tab1:
     plt.tight_layout()
     st.pyplot(fig, use_container_width=True)
 
-    # 누락되었던 2번 그래프: 주간 증감률(WoW) 변동성 분포 히스토그램
     st.markdown("### 2. 주간 증감률(WoW %) 변동성 및 충격 분포 (Volatilty & Skewness)")
     
     valid_wow = weekly_macro['wow_pct_change'].dropna()
@@ -383,7 +367,7 @@ with tab2:
     ax.set_yscale('log')
     ax.set_title("수명 그룹별 누적 시청 시간 분포 (로그 스케일)", fontsize=13, fontweight='bold', pad=12)
     ax.set_xlabel("작품 수명 분류", fontsize=11, labelpad=8)
-    ax.set_ylabel("총 누적 시청 시간 (로그 스케일)", fontsize=11, labelpad=8)
+    ax.set_ylabel("총 누적 시청 시간 (시간, 로그 스케일)", fontsize=11, labelpad=8)
     
     plt.tight_layout()
     st.pyplot(fig, use_container_width=True)
@@ -475,34 +459,52 @@ with tab3:
         st.warning("분석할 작품을 1개 이상 선택해 주세요.")
 
 # ---------------------------------------------------------
-# TAB 4: 연도별 및 언어권별 점유율
+# TAB 4: 연도별 및 언어권별 점유율 (개선 버전 적용 완료)
 # ---------------------------------------------------------
 with tab4:
     col_a, col_b = st.columns(2)
     
     with col_a:
-        st.markdown("### 연도별 주간 평균 시청 시간")
-        yearly_avg = weekly_macro.groupby('year')['weekly_hours_viewed'].mean() / 1e6
-        years = [f"{y}년" for y in yearly_avg.index]
+        st.markdown("### 연도별 주간 평균 시청 시간 추이")
         
-        fig_a, ax_a = plt.subplots(figsize=(6.2, 4.8))
+        yearly_agg = weekly_macro.groupby('year').agg(
+            mean_hours=('weekly_hours_viewed', 'mean'),
+            week_count=('week', 'count')
+        ).reset_index()
+        yearly_agg['year'] = yearly_agg['year'].astype(int)
+        yearly_agg['week_count'] = yearly_agg['week_count'].astype(int)
+        yearly_agg['mean_hours_m'] = yearly_agg['mean_hours'] / 1e6
+        
+        # 부분 연도 라벨 및 해칭 분기
+        year_labels = [
+            f"{y}년{ '*' if y in [2021, 2026] else '' }\n(n={w}주)"
+            for y, w in zip(yearly_agg['year'], yearly_agg['week_count'])
+        ]
+        bar_colors = ['#5C82A6' if y in [2021, 2026] else ('#1F4E79' if not is_dark else '#2980B9') for y in yearly_agg['year']]
+        bar_hatches = ['//' if y in [2021, 2026] else '' for y in yearly_agg['year']]
+        
+        fig_a, ax_a = plt.subplots(figsize=(6.5, 5.0))
         apply_active_chart_theme(fig_a, ax_a)
         
-        palette_bar = ['#4A90E2', '#2ECC71', '#F5A623', '#E50914', '#9B59B6', '#888888']
-        bars = ax_a.bar(years, yearly_avg.values, color=palette_bar[:len(years)], width=0.52, alpha=0.9)
-        ax_a.set_ylabel("평균 시청 시간 (백만 시간)", fontsize=10, labelpad=8)
-        ax_a.set_xlabel("연도", fontsize=10, labelpad=8)
+        bars = ax_a.bar(year_labels, yearly_agg['mean_hours_m'], color=bar_colors, hatch=bar_hatches, 
+                        edgecolor='#1F4E79' if not is_dark else '#FFFFFF', width=0.55, alpha=0.9)
+        ax_a.set_ylabel("주간 평균 시청 시간 (백만 시간)", fontsize=10, labelpad=8)
+        ax_a.set_xlabel("연도 (관측 주차 수 n)", fontsize=10, labelpad=8)
+        ax_a.set_ylim(0, max(yearly_agg['mean_hours_m']) * 1.15)
         
         for bar in bars:
             h = bar.get_height()
-            ax_a.text(bar.get_x() + bar.get_width() / 2., h + 2.5, f'{h:.1f}M', 
-                      ha='center', va='bottom', fontsize=9, fontweight='bold', color=TEXT_COLOR)
+            ax_a.text(bar.get_x() + bar.get_width() / 2., h + 3, f'{h:.1f}M', 
+                      ha='center', va='bottom', fontsize=9.5, fontweight='bold', color=TEXT_COLOR)
+        
+        ax_a.text(0.98, 0.02, '* 빗금(//)은 부분 연도 (2021: 26주, 2026: 39주)', 
+                  transform=ax_a.transAxes, ha='right', va='bottom', fontsize=8, color=SUB_TEXT, style='italic')
         
         plt.tight_layout()
         st.pyplot(fig_a, use_container_width=True)
         
     with col_b:
-        st.markdown("### 주요 언어권별 글로벌 시청 비중")
+        st.markdown("### 주요 언어권별 글로벌 시청 비중 (가로 막대)")
         
         def detect_language(title):
             tl = str(title).lower()
@@ -514,7 +516,7 @@ with tab4:
             ]
             spanish_kw = [
                 'money heist', 'la casa de papel', 'elite', 'berlin', 'who killed sara', 
-                'pálpito', 'the marked heart', 'fake profile', 'monarca', 'rebelde', 'betty'
+                'pálpito', 'the marked heart', 'fake profile', 'monarca', 'rebelde'
             ]
             japanese_kw = [
                 'alice in borderland', 'demon slayer', 'jujutsu kaisen', 'attack on titan', 
@@ -524,7 +526,7 @@ with tab4:
             german_kw = ['dark', '1899', 'the empress', 'dear child', 'kleo']
 
             for k in korean_kw:
-                if k in tl: return '한국어 (K-드라마)'
+                if k in tl: return '한국어'
             for k in spanish_kw:
                 if k in tl: return '스페인어'
             for k in japanese_kw:
@@ -536,58 +538,57 @@ with tab4:
             return '기타 언어권'
             
         df_clean['lang'] = df_clean['show_title'].apply(detect_language)
-        lang_share = df_clean.groupby('lang')['weekly_hours_viewed'].sum().sort_values(ascending=False)
+        lang_sum = df_clean.groupby('lang')['weekly_hours_viewed'].sum()
+        lang_pct = (lang_sum / lang_sum.sum()) * 100
         
-        fig_b, ax_b = plt.subplots(figsize=(6.2, 4.8))
-        fig_b.patch.set_facecolor(CHART_BG)
-        ax_b.set_facecolor(CHART_BG)
+        # 가로 바차트용 정렬 (기타 언어권 맨 아래, 주요 언어 점유율순)
+        specific_langs = lang_pct.drop('기타 언어권').sort_values(ascending=False)
+        order_b = ['기타 언어권'] + list(specific_langs.index[::-1])
+        lang_pct_b = lang_pct.loc[order_b]
         
-        colors_pie = ['#E50914', '#F5A623', '#4A90E2', '#2ECC71', '#9B59B6', '#555555']
-        wedge_edge = '#141414' if is_dark else '#FFFFFF'
-        wedges, texts, autotexts = ax_b.pie(
-            lang_share.values, 
-            autopct=lambda p: f'{p:.1f}%' if p > 3 else '',
-            startangle=140, 
-            colors=colors_pie[:len(lang_share)],
-            wedgeprops={'edgecolor': wedge_edge, 'linewidth': 1.5},
-            pctdistance=0.75
-        )
-        for at in autotexts:
-            at.set_fontsize(9.5)
-            at.set_color('#FFFFFF')
-            at.set_weight('bold')
-
-        leg_b = ax_b.legend(
-            wedges, 
-            [f"{label} ({val/lang_share.sum()*100:.1f}%)" for label, val in zip(lang_share.index, lang_share.values)],
-            loc="center left", 
-            bbox_to_anchor=(0.92, 0.5), 
-            frameon=True, 
-            facecolor=LEGEND_BG,
-            edgecolor=BORDER_COLOR,
-            fontsize=9
-        )
-        for text in leg_b.get_texts():
-            text.set_color(TEXT_COLOR)
+        fig_b, ax_b = plt.subplots(figsize=(6.5, 5.0))
+        apply_active_chart_theme(fig_b, ax_b)
         
+        color_map_b = {
+            '기타 언어권': '#777777' if is_dark else '#BDC3C7',
+            '프랑스어': '#A0B2C6',
+            '일본어': '#7A94B3',
+            '독일어': '#5677A0',
+            '스페인어': '#2B547E' if not is_dark else '#34495E',
+            '한국어': ACCENT_RED
+        }
+        bar_colors_b = [color_map_b.get(l, '#2B547E') for l in lang_pct_b.index]
+        
+        bars_b = ax_b.barh(lang_pct_b.index, lang_pct_b.values, color=bar_colors_b, height=0.56, alpha=0.9)
+        ax_b.set_xlabel("글로벌 점유율 (%)", fontsize=10, labelpad=8)
+        ax_b.set_xlim(0, 85)
+        
+        for bar in bars_b:
+            w = bar.get_width()
+            y_pos = bar.get_y() + bar.get_height() / 2.
+            if w > 40:
+                ax_b.text(w - 2.5, y_pos, f'{w:.1f}%', va='center', ha='right', fontsize=9.2, fontweight='bold', color='white')
+            else:
+                ax_b.text(w + 1.2, y_pos, f'{w:.1f}%', va='center', ha='left', fontsize=9.2, fontweight='bold', color=TEXT_COLOR)
+                
         plt.tight_layout()
         st.pyplot(fig_b, use_container_width=True)
 
     st.markdown("#### 🌐 주요 언어권별 누적 시청 시간 및 점유율 현황")
     
-    total_non_eng = lang_share.sum()
+    total_non_eng = lang_sum.sum()
     lang_summary_df = pd.DataFrame({
-        '언어권 구분': lang_share.index,
-        '누적 시청 시간 (억 시간)': lang_share.values / 1e8,
-        '글로벌 점유율 (%)': (lang_share.values / total_non_eng) * 100
-    })
+        '언어권 구분': lang_pct.index,
+        '누적 시청 시간 (억 시간)': (lang_sum.values / 1e8),
+        '글로벌 점유율 (%)': lang_pct.values
+    }).sort_values(by='글로벌 점유율 (%)', ascending=False)
     
     lang_summary_df['누적 시청 시간'] = lang_summary_df['누적 시청 시간 (억 시간)'].apply(lambda x: f"{x:.1f}억 시간")
     lang_summary_df['글로벌 점유율'] = lang_summary_df['글로벌 점유율 (%)'].apply(lambda x: f"{x:.1f}%")
     
     rep_shows = {
-        '한국어 (K-드라마)': '오징어 게임, 더 글로리, 이상한 변호사 우영우, 눈물의 여왕',
-        '스페인어': '종이의 집, 엘리트들, 베를린, 베티는 못말려',
+        '한국어': '오징어 게임, 더 글로리, 이상한 변호사 우영우, 눈물의 여왕',
+        '스페인어': '종이의 집, 엘리트들, 베를린, 엽기적인 그녀',
         '일본어': '아리스 인 보더랜드, 귀멸의 칼날, 원피스, 주술회전',
         '독일어': '다크 (Dark), 1899, 황후 엘리자베트',
         '프랑스어': '뤼팽 (Lupin), 타피에',
@@ -601,4 +602,4 @@ with tab4:
         hide_index=True
     )
 
-    st.info("💡 **언어권 인사이트**: 비영어권 TV 콘텐츠 중 **한국어(K-드라마)**와 **스페인어** 콘텐츠가 전체 시청 시간의 독보적인 비중을 차지하며 쌍두마차 체제를 구축하고 있습니다. 특히 한국 드라마는 아시아뿐만 아니라 미주, 유럽 등 전 대륙에 걸쳐 가장 폭넓은 시청층을 확보하고 있습니다.")
+    st.info("💡 **언어권 인사이트**: 비영어권 TV 시장에서 **한국어(18.6%)**와 **스페인어(6.7%)**가 주요 식별 언어권의 성장을 주도하고 있습니다. 특히 한국어 콘텐츠는 단일 언어 기준 비영어권 내 최대 시청 규모(102.7억 시간)를 달성하며 확고한 글로벌 경쟁력을 입증했습니다.")
