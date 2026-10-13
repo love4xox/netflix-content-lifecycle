@@ -24,8 +24,8 @@ week,category,weekly_rank,show_title,season_title,weekly_hours_viewed,runtime,we
 2024-12-29,TV (Non-English),3,Squid Game,Squid Game: Season 1,67100000,8.3167,8100000.0,24,11.735693297887225,22,22
 2025-01-05,TV (Non-English),1,Squid Game,Squid Game: Season 2,417100000,7.1667,58200000.0,2,72.95018889044354,23,23
 2025-01-05,TV (Non-English),2,Squid Game,Squid Game: Season 1,112700000,8.3167,13600000.0,25,19.711067580803135,24,24
-2025-01-12,TV (Non-English),3,Squid Game,Squid Game: Season 1,72600000,8.3167,8700000.0,26,12.69763537148454,25,25
-2025-01-12,TV (Non-English),1,Squid Game,Squid Game: Season 2,188300000,7.1667,26300000.0,3,32.933398628795295,26,26
+2025-01-12,TV (Non-English),1,Squid Game,Squid Game: Season 2,188300000,7.1667,26300000.0,3,32.933398628795295,25,25
+2025-01-12,TV (Non-English),3,Squid Game,Squid Game: Season 1,72600000,8.3167,8700000.0,26,12.69763537148454,26,26
 2025-01-19,TV (Non-English),1,Squid Game,Squid Game: Season 2,94800000,7.1667,13200000.0,4,16.580383377640967,27,27
 2025-01-19,TV (Non-English),5,Squid Game,Squid Game: Season 1,41500000,8.3167,5000000.0,27,7.258290191688821,28,28
 2025-01-26,TV (Non-English),1,Squid Game,Squid Game: Season 2,56700000,7.1667,7900000.0,5,9.916748285994123,29,29
@@ -36,9 +36,9 @@ week,category,weekly_rank,show_title,season_title,weekly_hours_viewed,runtime,we
 2025-02-16,TV (Non-English),8,Squid Game,Squid Game: Season 2,19200000,7.1667,2700000.0,8,3.3580523296488036,34,34
 2025-02-23,TV (Non-English),7,Squid Game,Squid Game: Season 2,15000000,7.1667,2100000.0,9,2.623478382538128,35,35
 2025-03-02,TV (Non-English),5,Squid Game,Squid Game: Season 2,11100000,7.1667,1500000.0,10,1.9413740030782147,36,36
-2025-06-29,TV (Non-English),3,Squid Game,Squid Game: Season 2,20300000,7.1667,2800000.0,11,3.550440744368266,37,37
-2025-06-29,TV (Non-English),6,Squid Game,Squid Game: Season 1,14300000,8.3167,1700000.0,30,2.5010493913530154,38,38
-2025-06-29,TV (Non-English),1,Squid Game,Squid Game: Season 3,368400000,6.1333,60100000.0,1,64.43262907513642,39,39
+2025-06-29,TV (Non-English),1,Squid Game,Squid Game: Season 3,368400000,6.1333,60100000.0,1,64.43262907513642,37,37
+2025-06-29,TV (Non-English),3,Squid Game,Squid Game: Season 2,20300000,7.1667,2800000.0,11,3.550440744368266,38,38
+2025-06-29,TV (Non-English),6,Squid Game,Squid Game: Season 1,14300000,8.3167,1700000.0,30,2.5010493913530154,39,39
 2025-07-06,TV (Non-English),1,Squid Game,Squid Game: Season 3,283800000,6.1333,46300000.0,2,49.636210997621376,40,40
 2025-07-06,TV (Non-English),2,Squid Game,Squid Game: Season 2,35100000,7.1667,4900000.0,12,6.138939415139219,41,41
 2025-07-06,TV (Non-English),3,Squid Game,Squid Game: Season 1,31300000,8.3167,3800000.0,31,5.474324891562894,42,42
@@ -66,9 +66,9 @@ week,category,weekly_rank,show_title,season_title,weekly_hours_viewed,runtime,we
 2021-09-19,TV (Non-English),6,Money Heist,Money Heist: Part 4,12270000,,,3,6.076964984398989,11,11
 2021-09-19,TV (Non-English),7,Money Heist,Money Heist: Part 2,11940000,,,2,5.913525828339359,12,12
 2021-09-19,TV (Non-English),8,Money Heist,Money Heist: Part 3,11490000,,,3,5.690654251894409,13,13
-2021-09-26,TV (Non-English),6,Money Heist,Money Heist: Part 1,12150000,,,4,6.01753256401367,14,14
-2021-09-26,TV (Non-English),9,Money Heist,Money Heist: Part 4,8680000,,,4,4.298945074538161,15,15
-2021-09-26,TV (Non-English),3,Money Heist,Money Heist: Part 5,21830000,,,4,10.811747808429498,16,16
+2021-09-26,TV (Non-English),3,Money Heist,Money Heist: Part 5,21830000,,,4,10.811747808429498,14,14
+2021-09-26,TV (Non-English),6,Money Heist,Money Heist: Part 1,12150000,,,4,6.01753256401367,15,15
+2021-09-26,TV (Non-English),9,Money Heist,Money Heist: Part 4,8680000,,,4,4.298945074538161,16,16
 2021-10-03,TV (Non-English),7,Money Heist,Money Heist: Part 5,14250000,,,5,7.057599920756773,17,17
 2021-10-03,TV (Non-English),10,Money Heist,Money Heist: Part 1,9370000,,,5,4.640681491753751,18,18
 2021-10-10,TV (Non-English),9,Money Heist,Money Heist: Part 5,9730000,,,6,4.818978752909713,19,19
