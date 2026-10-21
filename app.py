@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.ticker import MaxNLocator
 
 # ---------------------------------------------------------
 # [1] 스트림릿 페이지 설정
@@ -238,7 +239,7 @@ LANG = {
     "Love Next Door": "한국어", "My Demon": "한국어", "The Accident": "스페인어", "Dynamite Kiss": "한국어",
     "Hometown Cha-Cha-Cha": "한국어", "Yo soy Betty, la fea": "스페인어", "The Empress": "독일어",
     "When the Phone Rings": "한국어", "Business Proposal": "한국어", "Physical: 100": "한국어",
-    "Can This Love Be Translate": "한국어", "The Polygamist": "확인필요", "The Surrogacy": "확인필요",
+    "Can This Love Be Translate": "한국어", "The Polygamist": "기타(줄루어)", "The Surrogacy": "스페인어",
     "Welcome to Eden": "스페인어",
 }
 KEY_LEN = 26          # 긴 키는 앞부분만 맞아도(startswith) 일치로 본다 (제목이 잘려 저장된 경우 대비)
@@ -310,7 +311,7 @@ with st.sidebar:
         "기간 (주 시작일)", min_value=min_week, max_value=max_week,
         value=(min_week, max_week), format="YYYY-MM-DD"
     )
-    lang_options = ['한국어', '스페인어', '일본어', '프랑스어', '독일어', '확인필요', OTHER]
+    lang_options = ['한국어', '스페인어', '일본어', '프랑스어', '독일어', '기타(줄루어)', OTHER]
     sel_langs = st.multiselect("언어권 (비우면 전체)", lang_options, default=[])
     title_pool = (df_clean[df_clean['lang'].isin(sel_langs)] if sel_langs else df_clean)
     title_options = (title_pool.groupby('show_title')['weekly_hours_viewed'].sum()
@@ -618,6 +619,7 @@ with tab3:
         ax.set_title("최고점(Week 0) 이후 주차별 시청 시간 유지율 (%)", fontsize=13, fontweight='bold', pad=12)
         ax.set_xlabel("피크 이후 경과 주차 (달력 기준, Week)", fontsize=11, labelpad=8)
         ax.set_ylabel("최고 시청 시간 대비 유지율 (%)", fontsize=11, labelpad=8)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))   # 경과 주차는 정수 눈금
         ax.set_xlim(-0.5, max_week_plotted + 0.5)
         ax.set_ylim(0, 105)
         leg = ax.legend(loc='upper right', frameon=True, facecolor=LEGEND_BG, edgecolor=BORDER_COLOR)
@@ -661,9 +663,9 @@ with tab3:
 
         st.dataframe(pd.DataFrame(decay_summary_list), use_container_width=True, hide_index=True)
         st.info(
-            "💡 **인사이트 요약 (사례 3편 기준)**: 세 작품 모두 정점 1주 뒤 유지율은 61~72%였고, 50% 미만이 되기까지 2~3주가 걸려 "
+            "💡 **인사이트 요약 (사례 3편 기준)**: 세 작품 모두 정점 1주 뒤 유지율은 61%에서 72% 사이였고, 50% 미만이 되기까지 2주에서 3주가 걸려 "
             "**정점 이후 감쇄 속도는 비슷했습니다.** 차이는 정점에 이르는 경로입니다. 오징어 게임은 첫 차트 주 +2주(11% → 78% → 100%), "
-            "종이의 집은 첫 주가 정점, 우영우는 주 2회 순차 공개 속에 첫 차트 주 +6주에 정점을 찍었습니다. "
+            "종이의 집은 첫 주가 정점이었지만 5주에서 13주 사이 순위 밖이었다가 13주 뒤 정점의 94%로 다시 올라왔고, 우영우는 주 2회 순차 공개 속에 첫 차트 주 +6주에 정점을 찍었습니다. "
             "사례가 3편이라 순차 공개·입소문·종영 효과를 분리할 수는 없어서, 이는 원인 확정이 아닌 가설입니다."
         )
 
@@ -757,6 +759,7 @@ with tab4:
         # 06번 그래프와 같은 색 (언어마다 구분되게)
         color_map_b = {
             OTHER: '#777777' if is_dark else '#BDC3C7',
+            '기타(줄루어)': '#2AA7B8',
             '확인필요': '#BBBBBB',
             '프랑스어': '#2E9E6B',
             '일본어': '#F5A623',
