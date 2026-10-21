@@ -39,7 +39,7 @@ with st.sidebar:
     st.caption(
         "• 넷플릭스 공식 주간 Top 10 기준이라, '총 시청 시간'은 Top 10에 든 작품의 합계이며 전체 시청이 아닙니다.\n\n"
         "• Top 10 밖인 주는 0이 아니라 '값 없음'입니다.\n\n"
-        "• 언어권은 원본 컬럼이 아니라 제목 키워드로 분류한 추정치입니다."
+        "• 언어는 원본 컬럼이 아닙니다. 누적 시청 상위 40편만 직접 확인해 분류했고, 나머지는 '미분류'입니다."
     )
 
 # 테마별 색상 팔레트 정의
@@ -125,13 +125,33 @@ st.markdown(f"""
         gap: 8px;
         border-bottom: 2px solid {BORDER_COLOR};
     }}
-    .stTabs [data-baseweb="tab"] {{
+    .stTabs [data-baseweb="tab"], .stTabs [role="tab"] {{
         background-color: {TAB_BG} !important;
         border-radius: 8px 8px 0 0 !important;
         padding: 10px 20px !important;
         color: {SUB_TEXT} !important;
         font-weight: 600 !important;
         border: none !important;
+    }}
+    .stTabs [role="tab"] p, .stTabs [role="tab"] div, .stTabs [data-baseweb="tab"] p {{
+        color: {SUB_TEXT} !important;
+    }}
+    .stTabs [role="tab"][aria-selected="true"] p, .stTabs [role="tab"][aria-selected="true"] div {{
+        color: #FFFFFF !important;
+    }}
+    [data-testid="stRadio"] label, [data-testid="stRadio"] label p, [data-testid="stRadio"] label div,
+    [data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label {{
+        color: {TEXT_COLOR} !important;
+    }}
+    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p,
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {{
+        color: {SUB_TEXT} !important;
+        font-weight: 400 !important;
+    }}
+    [data-testid="stMetricDelta"] div {{
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
     }}
     .stTabs [aria-selected="true"] {{
         background-color: {ACCENT_RED} !important;
@@ -205,6 +225,32 @@ TITLE_KOR_MAP = {
     'One Piece': '원피스'
 }
 
+# 언어 분류: 누적 시청 상위 40편을 직접 확인한 표 (06_language_fixed.py와 동일해야 REPORT 숫자와 맞는다)
+LANG = {
+    "Squid Game": "한국어", "Money Heist": "스페인어", "Café con aroma de mujer": "스페인어",
+    "Teach You a Lesson": "한국어", "Extraordinary Attorney Woo": "한국어", "All of Us Are Dead": "한국어",
+    "Queen of Tears": "한국어", "The Queen of Flow": "스페인어", "Elite": "스페인어", "The Glory": "한국어",
+    "Alice in Borderland": "일본어", "The Marked Heart": "스페인어", "Wrong Side of the Tracks": "스페인어",
+    "Bon Appétit, Your Majesty": "한국어", "When Life Gives You Tanger": "한국어", "King the Land": "한국어",
+    "Single’s Inferno": "한국어", "Alchemy of Souls": "한국어", "Lupin": "프랑스어", "Fake Profile": "스페인어",
+    "La Reina del Sur": "스페인어", "Agent Kim Reactivated": "한국어", "Berlin and the Jewels of P": "스페인어",
+    "Culinary Class Wars": "한국어", "Bloodhounds": "한국어", "Til Money Do Us Part": "한국어",
+    "Love Next Door": "한국어", "My Demon": "한국어", "The Accident": "스페인어", "Dynamite Kiss": "한국어",
+    "Hometown Cha-Cha-Cha": "한국어", "Yo soy Betty, la fea": "스페인어", "The Empress": "독일어",
+    "When the Phone Rings": "한국어", "Business Proposal": "한국어", "Physical: 100": "한국어",
+    "Can This Love Be Translate": "한국어", "The Polygamist": "확인필요", "The Surrogacy": "확인필요",
+    "Welcome to Eden": "스페인어",
+}
+KEY_LEN = 26          # 긴 키는 앞부분만 맞아도(startswith) 일치로 본다 (제목이 잘려 저장된 경우 대비)
+OTHER = '미분류(상위 40편 밖)'
+
+def lookup_lang(title):
+    t = str(title).strip()
+    for key, lang in LANG.items():
+        if t == key or (len(key) >= KEY_LEN and t.startswith(key)):
+            return lang
+    return OTHER
+
 def get_korean_title(title):
     """정확히 일치하는 제목만 번역한다. (부분 일치는 'Dark Desire'를 '다크'로 바꾸는 등 오역을 만들어 제거)"""
     t_str = str(title).strip()
@@ -249,10 +295,93 @@ except Exception as e:
     st.stop()
 
 # ---------------------------------------------------------
+# [4-1] 필터: 기간 · 언어권 · 작품 목록
+#   - 기본값(전체 기간, 전체 언어권, 작품 미선택)이면 저장된 CSV를 그대로 쓴다.
+#   - 언어권/작품을 고르면 정제 데이터(df_clean)에서 주간 합계·이동평균·WoW를 다시 계산한다.
+# ---------------------------------------------------------
+df_clean['lang'] = df_clean['show_title'].map({t: lookup_lang(t) for t in df_clean['show_title'].unique()})
+all_weeks = weekly_macro['week']
+min_week, max_week = all_weeks.min().date(), all_weeks.max().date()
+
+with st.sidebar:
+    st.markdown("---")
+    st.header("🔎 필터")
+    period = st.slider(
+        "기간 (주 시작일)", min_value=min_week, max_value=max_week,
+        value=(min_week, max_week), format="YYYY-MM-DD"
+    )
+    lang_options = ['한국어', '스페인어', '일본어', '프랑스어', '독일어', '확인필요', OTHER]
+    sel_langs = st.multiselect("언어권 (비우면 전체)", lang_options, default=[])
+    title_pool = (df_clean[df_clean['lang'].isin(sel_langs)] if sel_langs else df_clean)
+    title_options = (title_pool.groupby('show_title')['weekly_hours_viewed'].sum()
+                     .sort_values(ascending=False).index.tolist())
+    sel_titles = st.multiselect("작품 (누적 시청 많은 순, 비우면 전체)", title_options, default=[],
+                                format_func=get_korean_title)
+
+p_start, p_end = pd.Timestamp(period[0]), pd.Timestamp(period[1])
+subset_active = bool(sel_langs or sel_titles)
+
+dc = df_clean[(df_clean['week'] >= p_start) & (df_clean['week'] <= p_end)]
+if sel_langs:
+    dc = dc[dc['lang'].isin(sel_langs)]
+if sel_titles:
+    dc = dc[dc['show_title'].isin(sel_titles)]
+
+if dc.empty:
+    st.warning("선택한 조건에 해당하는 데이터가 없습니다. 기간이나 작품 선택을 조정해 주세요.")
+    st.stop()
+
+wm_plot = None
+if not subset_active:
+    # 기간만 좁힌 경우: 전체 데이터로 계산해 둔 이동평균을 자른다 (구간 앞쪽이 NaN이 되지 않게)
+    wm = weekly_macro[(weekly_macro['week'] >= p_start) & (weekly_macro['week'] <= p_end)].copy()
+else:
+    # 언어권/작품을 골랐으면 선택 작품만으로 주간 합계를 다시 만든다.
+    # 선택 작품이 Top 10에 없던 주는 0이 아니라 '값 없음(NaN)'으로 둔다.
+    full_idx = weekly_macro['week']
+    wk_sum = dc.groupby('week')['weekly_hours_viewed'].sum().reindex(full_idx)
+    wm = pd.DataFrame({'week': full_idx.values, 'weekly_hours_viewed': wk_sum.values})
+    wm['hours_sma_4w'] = wm['weekly_hours_viewed'].rolling(window=4).mean()
+    wm['hours_sma_12w'] = wm['weekly_hours_viewed'].rolling(window=12).mean()
+    wm['wow_pct_change'] = wm['weekly_hours_viewed'].pct_change(fill_method=None) * 100
+    wm['year'] = wm['week'].dt.year
+    wm = wm[(wm['week'] >= p_start) & (wm['week'] <= p_end)].copy()
+    wm_plot = wm.reset_index(drop=True)          # 값 없는 주(NaN)를 남겨 둔 그래프용: 선이 끊겨 보이게 한다
+    wm = wm.dropna(subset=['weekly_hours_viewed']).reset_index(drop=True)
+    if wm.empty:
+        st.warning("선택한 작품이 이 기간에 Top 10에 없었습니다.")
+        st.stop()
+
+# 수명 요약표: '선택 기간·조건에서 처음 Top 10에 든 작품'만 남긴다
+_first_week = df_clean.groupby('show_title')['week'].min()
+_shown = set(dc['show_title'].unique())
+_in_period = set(_first_week[(_first_week >= p_start) & (_first_week <= p_end)].index)
+ss = show_summary[show_summary['show_title'].isin(_shown & _in_period)].copy()
+
+# 이후 코드가 필터된 데이터를 쓰도록 이름을 바꿔 둔다 (반감기 탭의 df_decay_post는 자체 작품 선택을 쓰므로 그대로)
+df_clean_all = df_clean            # 반감기 탭은 필터와 무관하게 전체 기준
+weekly_macro, show_summary, df_clean = wm.reset_index(drop=True), ss, dc.copy()
+weekly_plot = wm_plot if wm_plot is not None else weekly_macro
+weekly_macro['year'] = weekly_macro['week'].dt.year
+
+# 기본 상태에서 CSV 합계와 정제 데이터 합계가 어긋나면 알려 준다 (분석 가정 점검용)
+if not subset_active:
+    _chk = dc.groupby('week')['weekly_hours_viewed'].sum().reindex(weekly_macro['week'])
+    if not np.allclose(_chk.values, weekly_macro['weekly_hours_viewed'].values, rtol=0.01, equal_nan=True):
+        st.sidebar.warning("주의: 저장된 주간 합계와 정제 데이터의 합계가 1% 넘게 다릅니다. 집계 기준을 확인하세요.")
+
+# ---------------------------------------------------------
 # [5] 대시보드 헤더 & 핵심 지표 카드
 # ---------------------------------------------------------
 st.title("🎬 넷플릭스 비영어권 TV 콘텐츠 수명 분석 대시보드")
 st.markdown(f"<p style='color:{SUB_TEXT}; margin-top:-8px; margin-bottom:25px; font-size:1.05rem;'>글로벌 주간 Top 10 시청 데이터를 기반으로 거시 시계열 트렌드, 주간 변동성 충격, 작품 수명 분포, 메가히트작 반감기를 분석합니다.</p>", unsafe_allow_html=True)
+
+def note_metric(col, label, value, note):
+    """카드 아래 문구는 증감이 아니라 설명이므로 화살표와 색을 끈다 (지원하지 않는 버전이면 기본 표시로 대체)."""
+    try:
+        col.metric(label, value, note, delta_color="off", delta_arrow="off")
+    except TypeError:
+        col.metric(label, value, note, delta_color="off")
 
 col1, col2, col3, col4 = st.columns(4)
 total_weeks = len(weekly_macro)
@@ -267,10 +396,15 @@ mean_weekly_hours = weekly_macro['weekly_hours_viewed'].mean()
 _peak_rows = df_clean[df_clean['week'] == peak_macro_week]
 peak_top_show = _peak_rows.loc[_peak_rows['weekly_hours_viewed'].idxmax(), 'show_title'] if not _peak_rows.empty else "-"
 
-col1.metric("총 분석 주차", f"{total_weeks} 주", f"{weekly_macro['week'].min().year} ~ {weekly_macro['week'].max().year}")
-col2.metric("총 분석 타이틀", f"{total_shows:,} 편", "Top 10 진입 작품 기준")
-col3.metric("역대 최고 주간 시청량", f"{peak_macro_hours / 1e8:.1f}억 시간", f"{peak_macro_week.date()} · {get_korean_title(peak_top_show)}")
-col4.metric("주간 시청량 중앙값", f"{median_weekly_hours / 1e8:.2f}억 시간", f"평균 {mean_weekly_hours / 1e8:.2f}억 (히트작이 평균을 끌어올림)")
+_scope = " · ".join(filter(None, [
+    f"{p_start.date()} ~ {p_end.date()}",
+    ("언어권: " + ", ".join(sel_langs)) if sel_langs else "",
+    (f"선택 작품 {len(sel_titles)}편") if sel_titles else ""]))
+st.caption(f"현재 조건: {_scope}")
+note_metric(col1, "분석 주차", f"{total_weeks} 주", f"{weekly_macro['week'].min().date()} ~ {weekly_macro['week'].max().date()}")
+note_metric(col2, "총 분석 타이틀", f"{total_shows:,} 편", "Top 10 진입 작품 기준")
+note_metric(col3, "역대 최고 주간 시청량", f"{peak_macro_hours / 1e8:.1f}억 시간", f"{peak_macro_week.date()} · {get_korean_title(peak_top_show)}")
+note_metric(col4, "주간 시청량 중앙값", f"{median_weekly_hours / 1e8:.2f}억 시간", f"평균 {mean_weekly_hours / 1e8:.2f}억 (히트작이 평균을 끌어올림)")
 
 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
 
@@ -294,11 +428,11 @@ with tab1:
     apply_active_chart_theme(fig, ax)
 
     raw_line_color = '#666666' if is_dark else '#CED4DA'
-    ax.plot(weekly_macro['week'], weekly_macro['weekly_hours_viewed'] / 1e6,
-            color=raw_line_color, alpha=0.7, linewidth=1.2, label='주간 실제 시청 시간 (원시값)')
-    ax.plot(weekly_macro['week'], weekly_macro['hours_sma_4w'] / 1e6,
+    ax.plot(weekly_plot['week'], weekly_plot['weekly_hours_viewed'] / 1e6,
+            color=raw_line_color, alpha=0.7, linewidth=1.2, marker='.' if subset_active else None, markersize=4, label='주간 실제 시청 시간 (원시값)')
+    ax.plot(weekly_plot['week'], weekly_plot['hours_sma_4w'] / 1e6,
             color=SMA4_COLOR, linewidth=2.0, label='4주 이동평균 (단기 유행선)')
-    ax.plot(weekly_macro['week'], weekly_macro['hours_sma_12w'] / 1e6,
+    ax.plot(weekly_plot['week'], weekly_plot['hours_sma_12w'] / 1e6,
             color=ACCENT_RED, linewidth=2.5, label='12주 이동평균 (분기 거시 추세선)')
 
     ax.set_title("넷플릭스 비영어권 TV 주간 Top 10 합산 시청 시간 및 이동평균 트렌드", fontsize=13, fontweight='bold', pad=12)
@@ -311,6 +445,8 @@ with tab1:
     plt.tight_layout()
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
+    if subset_active:
+        st.caption("* 선택한 작품이 Top 10에 없던 주는 값이 없어 선이 끊깁니다(0이 아님). 이동평균은 창 안의 모든 주에 값이 있을 때만 그려집니다.")
 
     st.markdown("### 2. 주간 증감률(WoW %) 변동성 및 충격 분포 (Volatility & Skewness)")
 
@@ -360,7 +496,7 @@ with tab1:
         use_container_width=True,
         hide_index=True
     )
-    st.caption("* 2021년(7월~)과 2026년(~9월)은 부분 연도라서 연간 총 시청 시간을 다른 연도와 직접 비교할 수 없습니다.")
+    st.caption("* 부분 연도(관측 주차가 적은 해)는 연간 총 시청 시간을 다른 연도와 직접 비교할 수 없습니다. 주차 수 열을 함께 보세요. 필터를 쓰면 선택 조건에서 관측된 주만 셉니다.")
 
     # 인사이트 문구: 숫자를 하드코딩하지 않고 데이터에서 계산
     sma12_series = weekly_macro.set_index('week')['hours_sma_12w'].dropna() / 1e6
@@ -444,6 +580,7 @@ with tab2:
 # ---------------------------------------------------------
 with tab3:
     st.markdown("### 최고점(Peak) 이후 감쇄 곡선 및 50% 반감기 비교")
+    st.caption("이 탭은 사이드바의 기간·언어권·작품 필터와 무관하게, 아래에서 고른 작품의 전체 기간 기준입니다.")
 
     all_decay_shows = list(df_decay_post['show_title'].unique())
     show_kor_dict = {
@@ -498,7 +635,7 @@ with tab3:
             sub = df_decay_post[df_decay_post['show_title'] == show].sort_values('weeks_since_peak')
 
             # 최고 주간 시청 시간: 작품의 최고점 행이 곧 Week 0이므로 정제 데이터의 작품별 최댓값을 사용
-            show_rows = df_clean[df_clean['show_title'] == show]
+            show_rows = df_clean_all[df_clean_all['show_title'] == show]
             peak_val = show_rows['weekly_hours_viewed'].max() if not show_rows.empty else np.nan
 
             # 04 그래프와 같은 기준: 유지율이 50% '미만'이 된 첫 경과 주차 (NaN은 비교에서 제외됨)
@@ -552,8 +689,8 @@ with tab4:
         yearly_agg['mean_hours_m'] = yearly_agg['mean_hours'] / 1e6
         yearly_agg['median_hours_m'] = yearly_agg['median_hours'] / 1e6
 
-        first_year, last_year = int(yearly_agg['year'].min()), int(yearly_agg['year'].max())
-        partial_years = [first_year, last_year]
+        # 부분 연도: 관측 주차가 51주 미만인 해 (필터로 기간을 좁힌 해 포함)
+        partial_years = [int(y) for y, w in zip(yearly_agg['year'], yearly_agg['week_count']) if w < 51]
 
         # 부분 연도 라벨 및 해칭 분기
         year_labels = [
@@ -584,53 +721,30 @@ with tab4:
         for text in leg_a.get_texts():
             text.set_color(TEXT_COLOR)
 
-        n_first = int(yearly_agg.loc[yearly_agg['year'] == first_year, 'week_count'].iloc[0])
-        n_last = int(yearly_agg.loc[yearly_agg['year'] == last_year, 'week_count'].iloc[0])
-        ax_a.text(0.02, 0.02, f'* 빗금(//)은 부분 연도 ({first_year}: {n_first}주, {last_year}: {n_last}주)',
-                  transform=ax_a.transAxes, ha='left', va='bottom', fontsize=8, color=SUB_TEXT, style='italic')
+        if partial_years:
+            ax_a.text(0.02, 0.02, '* 빗금(//)은 관측 주차가 51주 미만인 부분 연도',
+                      transform=ax_a.transAxes, ha='left', va='bottom', fontsize=8, color=SUB_TEXT, style='italic')
 
         plt.tight_layout()
         st.pyplot(fig_a, use_container_width=True)
         plt.close(fig_a)
 
     with col_b:
-        st.markdown("### 주요 언어권별 시청 비중 (키워드 분류 추정치)")
+        st.markdown("### 언어권별 시청 비중 (상위 40편 직접 분류)")
 
-        OTHER = '기타·미분류'
-
-        def _kw_regex(words):
-            # 단어 경계 일치: 'dp'가 다른 단어 안에서 걸리거나 'dark'가 'Dark Desire'에 걸리는 것을 막는다
-            return re.compile(r'(?<![a-z0-9])(?:' + '|'.join(re.escape(w) for w in words) + r')(?![a-z0-9])')
-
-        LANG_RULES = [
-            ('한국어', _kw_regex([
-                'squid game', 'the glory', 'all of us are dead', 'extraordinary attorney woo',
-                'crash landing', 'itaewon', 'vincenzo', 'sweet home', 'hellbound', 'alchemy of souls',
-                'king the land', 'queen of tears', 'physical: 100', 'business proposal', 'mask girl',
-                'dp', 'my demon', 'doctor cha', 'celebrity', 'daily dose of sunshine', 'gyeongseong'])),
-            ('스페인어', _kw_regex([
-                'money heist', 'la casa de papel', 'elite', 'berlin', 'who killed sara',
-                'pálpito', 'the marked heart', 'fake profile', 'monarca', 'rebelde'])),
-            ('일본어', _kw_regex([
-                'alice in borderland', 'demon slayer', 'jujutsu kaisen', 'attack on titan',
-                'one piece', 'first love', 'sanctuary', 'spy x family'])),
-            ('프랑스어', _kw_regex(['lupin', 'class act', 'tapie'])),
-            ('독일어', _kw_regex(['1899', 'the empress', 'dear child', 'kleo'])),
-        ]
-
-        def detect_language(title):
-            tl = str(title).lower().strip()
-            for lang, rx in LANG_RULES:
-                if rx.search(tl):
-                    return lang
-            if tl == 'dark':          # 'Dark Desire' 등과 구분하기 위해 정확히 일치할 때만 독일어
-                return '독일어'
-            return OTHER
-
-        _title_lang = {t: detect_language(t) for t in df_clean['show_title'].unique()}
-        df_clean['lang'] = df_clean['show_title'].map(_title_lang)
+        # df_clean['lang']은 위 [4-1]에서 LANG 표로 이미 붙였다. 상위 40편 밖은 '미분류'
         lang_sum = df_clean.groupby('lang')['weekly_hours_viewed'].sum()
+        basis = st.radio(
+            "비중 기준", ["전체 시청 시간 (미분류 포함)", "분류된 작품만 (06번 그래프와 같은 기준)"],
+            horizontal=True, key="lang_basis")
+        if basis.startswith("분류된"):
+            lang_sum = lang_sum.drop(OTHER, errors='ignore')
+        if lang_sum.sum() == 0:
+            st.warning("분류된 작품이 없어 이 기준으로는 비중을 계산할 수 없습니다.")
+            st.stop()
         lang_pct = (lang_sum / lang_sum.sum()) * 100
+        if len(lang_sum) == 1:
+            st.info("한 가지 언어권만 남아 비중이 100%로 표시됩니다. 언어권끼리 비교하려면 사이드바의 언어권 선택을 비우고 보세요.")
 
         # 가로 바차트용 정렬 (기타·미분류 맨 아래, 주요 언어 점유율순)
         specific_langs = lang_pct.drop(OTHER, errors='ignore').sort_values(ascending=False)
@@ -640,12 +754,14 @@ with tab4:
         fig_b, ax_b = plt.subplots(figsize=(6.5, 5.0))
         apply_active_chart_theme(fig_b, ax_b)
 
+        # 06번 그래프와 같은 색 (언어마다 구분되게)
         color_map_b = {
             OTHER: '#777777' if is_dark else '#BDC3C7',
-            '프랑스어': '#A0B2C6',
-            '일본어': '#7A94B3',
-            '독일어': '#5677A0',
-            '스페인어': '#2B547E' if not is_dark else '#34495E',
+            '확인필요': '#BBBBBB',
+            '프랑스어': '#2E9E6B',
+            '일본어': '#F5A623',
+            '독일어': '#8E6BBF',
+            '스페인어': '#4A7BB7' if is_dark else '#2B547E',
             '한국어': ACCENT_RED
         }
         bar_colors_b = [color_map_b.get(l, '#2B547E') for l in lang_pct_b.index]
@@ -692,15 +808,15 @@ with tab4:
         hide_index=True
     )
 
-    with st.expander("🔍 언어 분류 검증: 누적 시청 상위 30편의 분류 결과와 '기타·미분류' 상위 15편"):
-        st.caption("분류가 의도대로 됐는지 눈으로 확인하는 표입니다. 잘못 들어간 작품이 보이면 키워드 목록(LANG_RULES)을 고치세요.")
+    with st.expander("🔍 언어 분류 검증: 선택 조건에서 누적 시청 상위 30편의 분류 결과와 '미분류' 상위 15편"):
+        st.caption("분류가 의도대로 됐는지 눈으로 확인하는 표입니다. 잘못 들어간 작품이 보이면 LANG 표를 고치세요.")
         top30 = title_hours.head(30).copy()
         top30['누적 시청(백만 시간)'] = (top30['weekly_hours_viewed'] / 1e6).round(1)
         st.dataframe(top30.rename(columns={'lang': '분류된 언어권', 'show_title': '작품명'})[['작품명', '분류된 언어권', '누적 시청(백만 시간)']],
                      use_container_width=True, hide_index=True)
         other_top = title_hours[title_hours['lang'] == OTHER].head(15).copy()
         other_top['누적 시청(백만 시간)'] = (other_top['weekly_hours_viewed'] / 1e6).round(1)
-        st.markdown("**'기타·미분류'로 남은 상위 15편** (실제로는 한국어·스페인어 등일 수 있는 작품이 있는지 확인)")
+        st.markdown("**'미분류'로 남은 상위 15편** (실제로는 한국어·스페인어 등일 수 있는 작품이 있는지 확인)")
         st.dataframe(other_top.rename(columns={'show_title': '작품명'})[['작품명', '누적 시청(백만 시간)']],
                      use_container_width=True, hide_index=True)
 
@@ -709,7 +825,7 @@ with tab4:
     other_pct = float(lang_pct.get(OTHER, 0.0))
     ko_hours = float(lang_sum.get('한국어', 0.0)) / 1e8
     st.info(
-        f"💡 **언어권 인사이트 (제목 키워드로 분류한 추정치)**: 분류된 언어권 중 **한국어 {ko_pct:.1f}%({ko_hours:.1f}억 시간)**, "
-        f"**스페인어 {es_pct:.1f}%** 순으로 비중이 컸습니다. 다만 **{other_pct:.1f}%는 어느 언어권에도 분류하지 못한 작품**이라, "
-        "언어 컬럼이 아닌 키워드 목록에 의존한 이 순위는 잠정적입니다. 위 '분류 검증' 표로 확인하세요."
+        f"💡 **언어권 인사이트 (상위 40편 직접 분류, 현재 조건 기준)**: 한국어 **{ko_pct:.1f}%({ko_hours:.1f}억 시간)**, "
+        f"스페인어 **{es_pct:.1f}%**입니다 ({'전체 시청 시간 기준, 미분류 ' + format(other_pct, '.1f') + '% 포함' if not basis.startswith('분류된') else '분류된 작품만의 합을 100%로 본 비중'}). "
+        "상위 40편 밖 작품은 언어를 확인하지 못했으므로 이 순위는 잠정적입니다. 오징어 게임 한 작품의 영향이 커서, 작품 필터로 빼고 비교해 보세요."
     )
