@@ -1,0 +1,6 @@
+data/raw/
+peek_outputs.py
+peek.txt
+ls.txt
+__pycache__/
+.ipynb_checkpoints/
