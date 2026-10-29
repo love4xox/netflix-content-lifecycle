@@ -83,6 +83,12 @@ py -m venv .venv
 pip install -r requirements.txt
 ```
 
+**원본 데이터 내려받기** (노트북 재현처럼 원본이 필요한 작업에 쓰며, 저장소에는 원본이 없습니다)
+1. 브라우저에서 넷플릭스 Top 10 페이지(https://www.netflix.com/tudum/top10)에 접속합니다.
+2. Downloads → Lists → Global Lists로 이동합니다.
+3. `all-weeks-global.tsv`를 내려받습니다.
+4. 이 파일을 프로젝트의 `data/raw/` 폴더에 넣습니다. (폴더가 없으면 만듭니다.)
+
 > 실행 전 확인: 터미널 줄 앞에 `(.venv)`가 붙어 있고 경로 끝이 `netflix-content-lifecycle>`인지 봅니다. 터미널을 새로 열면 둘 다 초기화되므로 다시 `.\.venv\Scripts\Activate.ps1`을 실행합니다.
 
 **대시보드**
