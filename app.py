@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # 맑은 고딕 한글 폰트 및 마이너스 부호 깨짐 방지
-plt.rcParams['font.family'] = 'Malgun Gothic'
+plt.rcParams['font.family'] = ['Malgun Gothic', 'NanumGothic', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 # ---------------------------------------------------------
