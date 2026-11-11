@@ -3,6 +3,8 @@
 넷플릭스 글로벌 **주간 Top 10**(비영어권 TV) 274주 데이터를 시계열로 분석해, 히트작이 얼마나 오래 시청을 유지하는지(콘텐츠 수명)와 그 구조를 살펴본 프로젝트입니다.
 분석 결과의 해석과 인사이트는 [REPORT.md](REPORT.md), 이 문서는 데이터·구조·실행 방법을 설명합니다.
 
+🔗 **대시보드 바로가기**: [https://netflix-content-lifecycle-vp2zozpfckefhrsymnbkkb.streamlit.app/](https://netflix-content-lifecycle-vp2zozpfckefhrsymnbkkb.streamlit.app/)
+
 ### 주요 결과 요약
 - **기본 수요**: 완전 연도 4개(2022년에서 2025년)의 주간 시청 시간 중앙값은 166.2M에서 197.2M 사이로, 뚜렷한 성장이나 하락 없이 유지됐습니다. 큰 변동은 소수 대형 신작의 공개 주에 몰려 있습니다.
 - **작품 수명**: 롱런작(8주 이상)은 전체 작품의 8.9%지만 전체 시청의 42.7%를 차지합니다. 작품의 77.6%는 4주 이하로 Top 10을 떠납니다.
@@ -43,6 +45,7 @@
 ├── app.py                    # Streamlit 대시보드
 ├── verify_numbers.py         # 리포트에 쓴 숫자를 다시 계산해 확인하는 스크립트
 ├── requirements.txt
+├── packages.txt              # 배포 환경에 설치할 한글 폰트 (fonts-nanum)
 ├── .streamlit/config.toml
 ├── data/
 │   ├── raw/all-weeks-global.tsv                 # 원본 (저장소에 미포함, 직접 내려받아 넣기)
@@ -95,9 +98,22 @@ pip install -r requirements.txt
 ```powershell
 python -m streamlit run app.py
 ```
-브라우저에서 `http://localhost:8501`이 열립니다. 한글 그래프 폰트로 `Malgun Gothic`을 쓰므로 Windows에서 가장 잘 보입니다.
+브라우저에서 `http://localhost:8501`이 열립니다.
 
-**분석 재현**: `notebooks/`의 노트북을 번호 순서대로 실행하면 `data/interim`, `data/processed`, `images`가 다시 만들어집니다 (01 → 02 → 03 → 04 순서, 위 폴더 구조 참고).
+**한글 폰트**: 그래프 폰트는 `Malgun Gothic`을 우선 쓰고, 없으면 `NanumGothic`, 그것도 없으면 `DejaVu Sans`를 씁니다. Windows에서는 별도 설정 없이 한글이 보입니다.
+
+**배포된 대시보드**: 설치 없이 아래 주소에서 바로 볼 수 있습니다.
+- https://netflix-content-lifecycle-vp2zozpfckefhrsymnbkkb.streamlit.app/
+- Streamlit Community Cloud에 배포했습니다. 저장소의 `main` 브랜치와 `app.py`를 그대로 실행하며, 저장소 코드가 바뀌면 배포본에도 반영됩니다.
+- 설치 패키지는 `requirements.txt`(streamlit, pandas, numpy, matplotlib, seaborn)로, 리눅스 서버용 한글 폰트는 `packages.txt`(`fonts-nanum`)로 지정했습니다.
+- 앱은 저장소에 있는 `data/interim`과 `data/processed`의 CSV만 읽으므로 원본 TSV 없이도 실행됩니다.
+- 일정 시간 접속이 없으면 앱이 잠들 수 있습니다. 이때는 화면의 버튼을 눌러 깨우면 1분 안팎 뒤에 열립니다.
+
+**분석 재현**: 원본 `all-weeks-global.tsv`를 `data/raw/`에 넣은 뒤 `notebooks/`의 노트북을 01 → 02 → 03 → 04 순서로 실행합니다. 노트북 04의 시계열 분해·예측(그래프 07)에는 `statsmodels`가 필요하므로 `pip install statsmodels`로 추가 설치합니다.
+- 01: 원본 점검과 비영어권 TV 추출·정제 → `data/interim/non_english_tv_clean.csv`
+- 02: 주간 합계, 이동평균, 증감률 → `data/processed/01_weekly_macro_series.csv`, 그래프 01·02 → `images/`
+- 03: 작품 수명 그룹, 정점 이후 감쇄 곡선 → `data/processed/03_decay_normalized.csv`, 그래프 03·04 → `images/`
+- 04: 종합 대시보드 이미지, 그래프 05(연도별)·06(언어권)·07(STL 분해, 12주 예측) → `images/`
 
 **숫자 확인**
 ```powershell
